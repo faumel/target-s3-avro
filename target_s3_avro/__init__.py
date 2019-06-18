@@ -58,6 +58,9 @@ def persist_lines(config, lines):
     type_switcher = {"integer": "int",
                      "number": "double",
                      "date-time": "long"}
+    default_switcher = {"integer": 0,
+                        "number": 0.0,
+                        "date-time": 0}
 
     now = datetime.now().strftime('%Y%m%dT%H%M%S')
 
@@ -120,7 +123,6 @@ def persist_lines(config, lines):
     logger.info('Processing input ...')
     # create temp directory for processing
     with tempfile.TemporaryDirectory() as temp_dir:
-
         # Loop over lines from stdin
         for line in lines:
             try:
@@ -145,8 +147,9 @@ def persist_lines(config, lines):
 
                 # Convert date fields in the record
                 for df_iter in schema_date_fields[o['stream']]:
-                    dt_value = dateutil.parser.parse(o['record'][df_iter])
-                    o['record'][df_iter] = int(dt_value.strftime("%s"))
+                    if o['record'][df_iter] is not None:
+                        dt_value = dateutil.parser.parse(o['record'][df_iter])
+                        o['record'][df_iter] = int(dt_value.strftime("%s"))
 
                 # writing to a file for the stream
                 avro_files[o['stream']].append(o['record'])
@@ -180,13 +183,17 @@ def persist_lines(config, lines):
                                     and o["schema"]["properties"][field_iter].get("format") == "date-time":
                                 schema_date_fields[stream].append(field_iter)
                                 type_list.append(type_switcher.get("date-time", type_iter))
+                                default_val = default_switcher.get("date-time", None)
                             else:
+                                default_val = default_switcher.get(type_iter, None)
                                 type_list.append(type_switcher.get(type_iter, type_iter))
+                        if len(type_list) == 1:
+                            type_list = type_list[0]
 
                         # append field and converted type list to schema
                         field_list.append({"name": field_iter,
                                            "type": type_list,
-                                           "default": None})
+                                           "default": default_val})
 
                 avsc_output = {"namespace": "{0}.avro".format(stream),
                                "type": "record",
@@ -202,7 +209,7 @@ def persist_lines(config, lines):
                 avsc_files[stream].close()
 
                 # open the avro data file
-                avro_files[stream] = DataFileWriter(open("{0}.avro".format(avsc_basename[stream]), "wb"),
+                    avro_files[stream] = DataFileWriter(open("{0}.avro".format(avsc_basename[stream]), "wb"),
                                                     DatumWriter(),
                                                     avsc_schema)
 
