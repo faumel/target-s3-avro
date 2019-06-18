@@ -39,7 +39,7 @@ We can now run `tap-exchangeratesapi` and pipe the output to `target-s3-avro`.
   "aws_access_key_id": "<Your AWS Access key>",
   "aws_secret_access_key": "<Your AWS Secret Access key>",
   "target_bucket_key": "<Target S3 Bucket>/<Target S3 Key>"
-  "target_schema_bucket_key": "<Target S3 Bucket for schema>/<Target S3 Key>"
+  "target_schema_bucket_key": "<Target S3 Bucket for schema>/<Target S3 Key for schema>"
 }
 ```
 * NOTE: The `<Target S3 Key>` portion of the `target_bucket_key` value is treated as a prefix to the key file (see below)
@@ -52,7 +52,7 @@ To run `target-s3-avro` with the configuration file, use this command:
 ```
 
 The data will be written to a file in the `<Target S3 Bucket>` bucket, with the following key `<Target S3 Key>/exchange_rate-{timestamp}.avro`.
-The schema will be written to a file in the `<Target S3 Bucket for schema>` bucket, with the following key `<Target S3 Key>/exchange_rate-{timestamp}.avsc`.
+The schema will be written to a file in the `<Target S3 Bucket for schema>` bucket, with the following key `<Target S3 Key for schema>/exchange_rate-{timestamp}.avsc`.
 
 ---
 
