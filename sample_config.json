@@ -1,0 +1,13 @@
+{
+  "aws_access_key_id": "<The access key to use when creating the client>",
+  "aws_secret_access_key": "<The secret key to use when creating the client>",
+  "target_bucket_key": "<Destination bucket and key folder in the format of {bucket}/{key}>",
+  "target_schema_bucket_key": "<OPTIONAL: Schema destination bucket and key folder in the format of {bucket}/{key}>",
+  "region_name": "<OPTIONAL: AWS Region where bucket resides or will be created>",
+  "api_version": "<OPTIONAL: AWS api_version>",
+  "use_ssl": "<OPTIONAL: DEFAULT: true; Whether or not to use SSL>",
+  "verify": "<OPTIONAL: DEFAULT: true; Whether or not to verify SSL certificates>",
+  "endpoint_url": "<OPTIONAL; See AWS Boto3 Session Documentation>",
+  "aws_session_token": "OPTIONAL: The session token to use when creating the client",
+  "config": "<OPTIONAL: Advanced AWS client configuration options>"
+}
