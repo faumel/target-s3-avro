@@ -10,4 +10,5 @@
   "endpoint_url": "<OPTIONAL; See AWS Boto3 Session Documentation>",
   "aws_session_token": "OPTIONAL: The session token to use when creating the client",
   "config": "<OPTIONAL: Advanced AWS client configuration options>"
+  "include_timestamp": "<OPTIONAL: DEFAULT "true" If "false" is passed, then the timestamp will be omitted from target filenames>"
 }

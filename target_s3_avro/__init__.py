@@ -62,7 +62,7 @@ def persist_lines(config, lines):
                         "number": 0.0,
                         "date-time": 0}
 
-    now = datetime.now().strftime('%Y%m%dT%H%M%S')
+    now = ("-" + datetime.now().strftime('%Y%m%dT%H%M%S')) if config.get("include_timestamp") != "false" else ""
 
     logger.info('Connecting to s3 ...')
     s3_client = boto3.client(
@@ -167,7 +167,7 @@ def persist_lines(config, lines):
                 if 'key_properties' not in o:
                     raise Exception("key_properties field is required")
                 key_properties[stream] = o['key_properties']
-                avro_files[stream] = open(os.path.join(temp_dir, "{0}-{1}.json".format(stream, now)), 'a')
+                avro_files[stream] = open(os.path.join(temp_dir, "{0}{1}.json".format(stream, now)), 'a')
 
                 # read in the catalog and add selected fields to the avro schema
                 schema_date_fields[stream] = []
@@ -202,14 +202,14 @@ def persist_lines(config, lines):
                 avsc_schema = avro.schema.Parse(dumps(avsc_output))
 
                 # write the avro schema out to a file
-                avsc_basename[stream] = os.path.join(temp_dir, "{0}-{1}".format(stream, now))
+                avsc_basename[stream] = os.path.join(temp_dir, "{0}{1}".format(stream, now))
                 avsc_files[stream] = open("{0}.avsc".format(avsc_basename[stream]), 'a')
                 avsc_files[stream].truncate()
                 dump(avsc_output, avsc_files[stream], indent=2)
                 avsc_files[stream].close()
 
                 # open the avro data file
-                    avro_files[stream] = DataFileWriter(open("{0}.avro".format(avsc_basename[stream]), "wb"),
+                avro_files[stream] = DataFileWriter(open("{0}.avro".format(avsc_basename[stream]), "wb"),
                                                     DatumWriter(),
                                                     avsc_schema)
 
