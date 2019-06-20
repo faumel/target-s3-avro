@@ -35,15 +35,69 @@ def emit_state(state):
         sys.stdout.flush()
 
 
-def flatten(d, parent_key='', sep='__'):
+def flatten(d, parent_key='', flatten_delimiter='__'):
     items = []
     for k, v in d.items():
-        new_key = parent_key + sep + k if parent_key else k
+        new_key = parent_key + flatten_delimiter + k if parent_key else k
         if isinstance(v, collections.MutableMapping):
-            items.extend(flatten(v, new_key, sep=sep).items())
+            items.extend(flatten(v, new_key, flatten_delimiter=flatten_delimiter).items())
         else:
             items.append((new_key, str(v) if type(v) is list else v))
     return dict(items)
+
+
+def _flatten_avsc(a, parent_key='', flatten_delimiter='__'):
+    field_list = []
+    dates_list = []
+    type_switcher = {"integer": "int",
+                     "number": "double",
+                     "date-time": "long"}
+    default_switcher = {"integer": 0,
+                        "number": 0.0,
+                        "date-time": 0}
+
+    for k, v in a.items():
+        if v.get("selected") == "true" or parent_key:
+            append_default_element = False
+            new_key = parent_key + flatten_delimiter + k if parent_key else k
+            type_list = []
+            default_val = None
+            types = [v["type"]] if isinstance(v["type"], str) else v["type"]
+            for t in types:
+                if t == "object" or t == "dict":
+                    recurs_avsc, recurs_dates = _flatten_avsc(v["properties"],
+                                                              parent_key=new_key,
+                                                              flatten_delimiter=flatten_delimiter)
+                    field_list.extend(recurs_avsc)
+                    dates_list.extend(recurs_dates)
+                    append_default_element = True
+                if t == "array":
+                    type_list.append(type_switcher.get("string", "string"))
+                    default_val = default_switcher.get("string", None)
+                elif t == "string" and v.get("format") == "date-time":
+                    dates_list.append(new_key)
+                    type_list.append(type_switcher.get("date-time", t))
+                    default_val = default_switcher.get("date-time", None)
+                else:
+                    type_list.append(type_switcher.get(t, t))
+                    default_val = default_switcher.get(t, None)
+            if len(type_list) == 1 and "null" not in type_list:
+                type_list = ["null", type_list[0]]
+
+            if append_default_element:
+                new_element = {"name": new_key, "type": ["null"], "default": None}
+            else:
+                new_element = {"name": new_key, "type": type_list, "default": default_val}
+
+            # Handle all disallowed avro characters in the field name with alias
+            pattern = r"[^A-Za-z0-9_]"
+            if re.search(pattern, k):
+                new_element["alias"] = new_key
+                new_element["name"] = re.sub(pattern, "_", k)
+
+            field_list.append(new_element)
+
+    return list(field_list), list(dates_list)
 
 
 def persist_lines(config, lines):
@@ -55,14 +109,9 @@ def persist_lines(config, lines):
     avsc_files = {}
     avro_files = {}
     schema_date_fields = {}
-    type_switcher = {"integer": "int",
-                     "number": "double",
-                     "date-time": "long"}
-    default_switcher = {"integer": 0,
-                        "number": 0.0,
-                        "date-time": 0}
 
     now = ("-" + datetime.now().strftime('%Y%m%dT%H%M%S')) if config.get("include_timestamp") != "false" else ""
+    flatten_delimiter = config.get("flatten_delimiter", "__")
 
     logger.info('Connecting to s3 ...')
     s3_client = boto3.client(
@@ -98,7 +147,7 @@ def persist_lines(config, lines):
 
     # if no target_schema_bucket_key is passed, use the target_bucket_key
     if config.get("target_schema_bucket_key") is None:
-        logger.info('No  target_schema_bucket_key passed. Using target_bucket_key: {} ...'
+        logger.info('No target_schema_bucket_key passed. Using target_bucket_key: {} ...'
                     .format(config.get("target_bucket_key")))
         target_schema_bucket = target_bucket
         target_schema_key = target_key
@@ -106,7 +155,7 @@ def persist_lines(config, lines):
         logger.info('Validating target_schema_bucket_key: {} ...'.format(config.get("target_schema_bucket_key")))
         # Remove empty strings and any s3 Prefix defined in the target_schema_location
         target_schema_location = list(filter(bucket_prefix_regex.match,
-                                              filter(None, config.get("target_schema_bucket_key").split("/"))))
+                                             filter(None, config.get("target_schema_bucket_key").split("/"))))
         # Use first element in the target_schema_location as the target_schema_bucket
         target_schema_bucket = target_schema_location[0]
         # Use all elements except the last as the target_schema_key
@@ -151,8 +200,10 @@ def persist_lines(config, lines):
                         dt_value = dateutil.parser.parse(o['record'][df_iter])
                         o['record'][df_iter] = int(dt_value.strftime("%s"))
 
+                flattened_record = flatten(o['record'], flatten_delimiter=flatten_delimiter)
+
                 # writing to a file for the stream
-                avro_files[o['stream']].append(o['record'])
+                avro_files[o['stream']].append(flattened_record)
 
                 state = None
             elif t == 'STATE':
@@ -171,47 +222,27 @@ def persist_lines(config, lines):
 
                 # read in the catalog and add selected fields to the avro schema
                 schema_date_fields[stream] = []
-                field_list = []
 
-                for field_iter in o['schema']["properties"].keys():
-                    if o["schema"]["properties"][field_iter]["selected"] == "true":
-                        type_list = []
-                        # use defined switcher for field type conversion
-                        for type_iter in o["schema"]["properties"][field_iter]["type"]:
-                            # If the field is a string formatted as a date-time field, add it to the datetime_field_list
-                            if type_iter == "string" \
-                                    and o["schema"]["properties"][field_iter].get("format") == "date-time":
-                                schema_date_fields[stream].append(field_iter)
-                                type_list.append(type_switcher.get("date-time", type_iter))
-                                default_val = default_switcher.get("date-time", None)
-                            else:
-                                default_val = default_switcher.get(type_iter, None)
-                                type_list.append(type_switcher.get(type_iter, type_iter))
-                        if len(type_list) == 1:
-                            type_list = type_list[0]
+                avsc_fields, schema_date_fields[stream] = _flatten_avsc(o['schema']["properties"],
+                                                                        flatten_delimiter=flatten_delimiter)
 
-                        # append field and converted type list to schema
-                        field_list.append({"name": field_iter,
-                                           "type": type_list,
-                                           "default": default_val})
-
-                avsc_output = {"namespace": "{0}.avro".format(stream),
-                               "type": "record",
-                               "name": "{0}".format(stream),
-                               "fields": list(field_list)}
-                avsc_schema = avro.schema.Parse(dumps(avsc_output))
+                avsc_dict = {"namespace": "{0}.avro".format(stream),
+                             "type": "record",
+                             "name": "{0}".format(stream),
+                             "fields": list(avsc_fields)}
 
                 # write the avro schema out to a file
                 avsc_basename[stream] = os.path.join(temp_dir, "{0}{1}".format(stream, now))
                 avsc_files[stream] = open("{0}.avsc".format(avsc_basename[stream]), 'a')
                 avsc_files[stream].truncate()
-                dump(avsc_output, avsc_files[stream], indent=2)
+                dump(avsc_dict, avsc_files[stream], indent=2)
                 avsc_files[stream].close()
 
                 # open the avro data file
+                avro_schema = avro.schema.Parse(dumps(avsc_dict))
                 avro_files[stream] = DataFileWriter(open("{0}.avro".format(avsc_basename[stream]), "wb"),
                                                     DatumWriter(),
-                                                    avsc_schema)
+                                                    avro_schema)
 
             else:
                 raise Exception("Unknown message type {} in message {}"
@@ -294,5 +325,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
