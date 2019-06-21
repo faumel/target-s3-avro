@@ -57,7 +57,8 @@ def _flatten_avsc(a, parent_key='', flatten_delimiter='__'):
                         "date-time": 0}
 
     for k, v in a.items():
-        if v.get("selected") == "true" or parent_key:
+        if (v.get("selected") == "true" or v.get("inclusion") == "automatic" or parent_key)\
+                and v.get("inclusion") != "unsupported":
             append_default_element = False
             new_key = parent_key + flatten_delimiter + k if parent_key else k
             type_list = []
