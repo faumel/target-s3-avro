@@ -178,7 +178,7 @@ def persist_lines(config, lines):
             try:
                 o = json.loads(line)
             except json.decoder.JSONDecodeError:
-                logger.error("Unable to parse:\n{}".format(line))
+                logger.error("Unable to parse:\n{0}".format(line))
                 raise
 
             if 'type' not in o:
