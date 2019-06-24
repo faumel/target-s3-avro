@@ -86,7 +86,7 @@ def _flatten_avsc(a, parent_key='', flatten_delimiter='__'):
                 type_list = ["null", type_list[0]]
 
             if append_default_element:
-                new_element = {"name": new_key, "type": ["null"], "default": None}
+                new_element = {"name": new_key, "type": ["null", "string"], "default": None}
             else:
                 new_element = {"name": new_key, "type": type_list, "default": default_val}
 
