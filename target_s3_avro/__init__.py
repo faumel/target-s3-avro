@@ -63,7 +63,13 @@ def _flatten_avsc(a, parent_key='', flatten_delimiter='__'):
             new_key = parent_key + flatten_delimiter + k if parent_key else k
             type_list = []
             default_val = None
-            types = [v["type"]] if isinstance(v["type"], str) else v["type"]
+            types = [v.get("type")] if isinstance(v.get("type"), str) else v.get("type")
+            # Convert legacy "anyOf" field types to string & check for date-time format
+            if v.get("type") is None and v.get("anyOf"):
+                for ao_iter in v.get("anyOf"):
+                    if ao_iter.get("format") == "date-time":
+                        v["format"] = "date-time"
+                types = ["null", "string"]
             for t in types:
                 if t == "object" or t == "dict":
                     recurs_avsc, recurs_dates = _flatten_avsc(v["properties"],
@@ -245,7 +251,8 @@ def persist_lines(config, lines):
                 avro_files[stream] = DataFileWriter(open("{0}.avro".format(avsc_basename[stream]), "wb"),
                                                     DatumWriter(),
                                                     avro_schema)
-
+            elif t == 'ACTIVATE_VERSION':
+                logger.debug('Completed sync of {0} version {1}.'.format(o['stream'], o['version']))
             else:
                 raise Exception("Unknown message type {} in message {}"
                                 .format(o['type'], o))
