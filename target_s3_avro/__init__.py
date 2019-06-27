@@ -61,7 +61,7 @@ def _flatten_avsc(a, parent_key='', flatten_delimiter='__'):
                 and v.get("inclusion") != "unsupported":
             append_default_element = False
             new_key = parent_key + flatten_delimiter + k if parent_key else k
-            type_list = []
+            type_list = ["null"]
             default_val = None
             types = [v.get("type")] if isinstance(v.get("type"), str) else v.get("type")
             # Convert legacy "anyOf" field types to string & check for date-time format
@@ -78,18 +78,18 @@ def _flatten_avsc(a, parent_key='', flatten_delimiter='__'):
                     field_list.extend(recurs_avsc)
                     dates_list.extend(recurs_dates)
                     append_default_element = True
-                if t == "array":
+                elif t == "array":
                     type_list.append(type_switcher.get("string", "string"))
                     default_val = default_switcher.get("string", None)
                 elif t == "string" and v.get("format") == "date-time":
                     dates_list.append(new_key)
                     type_list.append(type_switcher.get("date-time", t))
                     default_val = default_switcher.get("date-time", None)
+                elif t == "null":
+                    pass
                 else:
                     type_list.append(type_switcher.get(t, t))
                     default_val = default_switcher.get(t, None)
-            if len(type_list) == 1 and "null" not in type_list:
-                type_list = ["null", type_list[0]]
 
             if append_default_element:
                 new_element = {"name": new_key, "type": ["null", "string"], "default": None}
