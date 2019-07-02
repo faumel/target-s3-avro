@@ -178,7 +178,7 @@ def persist_lines(config, lines):
 
     logger.info('Processing input ...')
     # create temp directory for processing
-    with tempfile.TemporaryDirectory() as temp_dir:
+    with tempfile.TemporaryDirectory(dir=config.get("tmp_dir")) as temp_dir:
         # Loop over lines from stdin
         for line in lines:
             try:
@@ -277,6 +277,8 @@ def persist_lines(config, lines):
                                       target_schema_key + "/" + os.path.basename(file_name))
             except ClientError as e:
                 logger.error(e)
+
+        
 
     return state
 
