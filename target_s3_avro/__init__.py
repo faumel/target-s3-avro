@@ -133,6 +133,10 @@ def persist_lines(config, lines):
         aws_session_token=config.get("aws_session_token"),
         config=config.get("config")
     )
+    tdir = config.get("tmp_dir")
+
+    if not os.path.isdir(tdir):
+        raise Exception("Path '{0}' from config.tmp_dir does not exist!".format(tdir))
 
     bucket_prefix_regex = re.compile(r'.*(?<!:)$')
 
@@ -178,7 +182,7 @@ def persist_lines(config, lines):
 
     logger.info('Processing input ...')
     # create temp directory for processing
-    with tempfile.TemporaryDirectory(dir=config.get("tmp_dir")) as temp_dir:
+    with tempfile.TemporaryDirectory(dir=tdir) as temp_dir:
         # Loop over lines from stdin
         for line in lines:
             try:
