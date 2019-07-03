@@ -135,8 +135,9 @@ def persist_lines(config, lines):
     )
     tdir = config.get("tmp_dir")
 
-    if not os.path.isdir(tdir):
-        raise Exception("Path '{0}' from config.tmp_dir does not exist!".format(tdir))
+    if tdir:
+        if not os.path.isdir(tdir):
+            raise Exception("Path '{0}' from config.tmp_dir does not exist!".format(tdir))
 
     bucket_prefix_regex = re.compile(r'.*(?<!:)$')
 
