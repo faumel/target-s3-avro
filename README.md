@@ -24,7 +24,7 @@ deactivate
 # Install target-s3-avro in its own virtualenv
 python3 -m venv ~/.virtualenvs/target-s3-avro
 source ~/.virtualenvs/target-s3-avro/bin/activate
-pip install target-s3-avro
+pip install <location of cloned target-s3-avro repository>/
 deactivate
 ```
 
@@ -38,8 +38,10 @@ We can now run `tap-exchangeratesapi` and pipe the output to `target-s3-avro`.
 {
   "aws_access_key_id": "<Your AWS Access key>",
   "aws_secret_access_key": "<Your AWS Secret Access key>",
-  "target_bucket_key": "<Target S3 Bucket>/<Target S3 Key>"
-  "target_schema_bucket_key": "<Target S3 Bucket for schema>/<Target S3 Key for schema>"
+  "target_bucket_key": "<Target S3 Bucket>/<Target S3 Key>",
+  "target_schema_bucket_key": "<Target S3 Bucket for schema>/<Target S3 Key for schema>",
+  "include_timestamp": "<Set to false to prevent the inclusion of the timestamp in the filenames>",
+  "tmp_dir": "Working folder used for creation of temp directory where files will be created before moving to s3"
 }
 ```
 * NOTE: The `<Target S3 Key>` portion of the `target_bucket_key` value is treated as a prefix to the key file (see below)
