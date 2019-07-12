@@ -133,7 +133,7 @@ def persist_lines(config, lines):
         aws_session_token=config.get("aws_session_token"),
         config=config.get("config")
     )
-    tdir = config.get("tmp_dir")
+    tdir = config.get("tmp_dir", os.getcwd())
 
     if tdir:
         if not os.path.isdir(tdir):
