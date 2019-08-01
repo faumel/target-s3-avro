@@ -63,7 +63,7 @@ def _flatten_avsc(a, parent_key='', flatten_delimiter='__'):
             new_key = parent_key + flatten_delimiter + k if parent_key else k
             type_list = ["null"]
             default_val = None
-            types = [v.get("type")] if isinstance(v.get("type"), str) else v.get("type")
+            types = [v.get("type")] if isinstance(v.get("type"), str) else v.get("type", ["null", "string"])
             # Convert legacy "anyOf" field types to string & check for date-time format
             if v.get("type") is None and v.get("anyOf"):
                 for ao_iter in v.get("anyOf"):
