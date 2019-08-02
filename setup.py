@@ -3,7 +3,7 @@ from setuptools import setup
 
 setup(
     name="target-s3-avro",
-    version="1.1.2",
+    version="1.2",
     author="Froilan A. Umel",
     author_email="froilan.umel@gmail.com",
     description="Singer.io target for extracting data into s3 stored as AVRO",

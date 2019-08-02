@@ -59,17 +59,21 @@ def _flatten_avsc(a, parent_key='', flatten_delimiter='__'):
     for k, v in a.items():
         if (v.get("selected") == "true" or v.get("inclusion") == "automatic" or parent_key)\
                 and v.get("inclusion") != "unsupported":
-            append_default_element = False
             new_key = parent_key + flatten_delimiter + k if parent_key else k
             type_list = ["null"]
             default_val = None
-            types = [v.get("type")] if isinstance(v.get("type"), str) else v.get("type", ["null", "string"])
-            # Convert legacy "anyOf" field types to string & check for date-time format
-            if v.get("type") is None and v.get("anyOf"):
-                for ao_iter in v.get("anyOf"):
-                    if ao_iter.get("format") == "date-time":
-                        v["format"] = "date-time"
-                types = ["null", "string"]
+            types = [v.get("type")] if isinstance(v.get("type"), str) else v.get("type")
+            # Check for date-time formatConvert & legacy "anyOf" and empty field types conversion to string
+            if v.get("type") is None:
+                if v.get("anyOf"):
+                    for ao_iter in v.get("anyOf"):
+                        if ao_iter.get("format") == "date-time":
+                            v["format"] = "date-time"
+                    types = ["null", "string"]
+                else:
+                    # In the case of undefined types in JSON any basic type is accepted in the AVSC
+                    types = ["null", "string", "boolean", "int", "float", "bytes"]
+
             for t in types:
                 if t == "object" or t == "dict":
                     recurs_avsc, recurs_dates = _flatten_avsc(v["properties"],
@@ -77,7 +81,9 @@ def _flatten_avsc(a, parent_key='', flatten_delimiter='__'):
                                                               flatten_delimiter=flatten_delimiter)
                     field_list.extend(recurs_avsc)
                     dates_list.extend(recurs_dates)
-                    append_default_element = True
+                    # Set a default element of string
+                    type_list.append(type_switcher.get("string", "string"))
+                    default_val = default_switcher.get("string", None)
                 elif t == "array":
                     type_list.append(type_switcher.get("string", "string"))
                     default_val = default_switcher.get("string", None)
@@ -91,10 +97,10 @@ def _flatten_avsc(a, parent_key='', flatten_delimiter='__'):
                     type_list.append(type_switcher.get(t, t))
                     default_val = default_switcher.get(t, None)
 
-            if append_default_element:
-                new_element = {"name": new_key, "type": ["null", "string"], "default": None}
-            else:
-                new_element = {"name": new_key, "type": type_list, "default": default_val}
+            if len(types) > 2:
+                default_val = None
+
+            new_element = {"name": new_key, "type": type_list, "default": default_val}
 
             # Handle all disallowed avro characters in the field name with alias
             pattern = r"[^A-Za-z0-9_]"
@@ -282,8 +288,6 @@ def persist_lines(config, lines):
                                       target_schema_key + "/" + os.path.basename(file_name))
             except ClientError as e:
                 logger.error(e)
-
-        
 
     return state
 
