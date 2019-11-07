@@ -14,6 +14,7 @@ setup(
         "singer-python>=5.0.12",
         "boto3>=1.4.1",
         "avro-python3>=1.9.0",
+        "fastavro>=0.22.5",
     ],
     entry_points="""
     [console_scripts]

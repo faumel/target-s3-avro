@@ -18,6 +18,7 @@ import threading
 import urllib
 from avro.datafile import DataFileWriter
 from avro.io import DatumWriter
+from fastavro import writer, parse_schema
 from datetime import datetime
 from json import dumps, dump
 from jsonschema.validators import Draft4Validator
@@ -120,7 +121,9 @@ def persist_lines(config, lines):
     validators = {}
     avsc_basename = {}
     avsc_files = {}
-    avro_files = {}
+    # avro_files = {}
+    avro_schemas = {}
+    avro_records = {}
     schema_date_fields = {}
 
     now = ("-" + datetime.now().strftime('%Y%m%dT%H%M%S')) if config.get("include_timestamp") != "false" else ""
@@ -222,7 +225,9 @@ def persist_lines(config, lines):
                 flattened_record = flatten(o['record'], flatten_delimiter=flatten_delimiter)
 
                 # writing to a file for the stream
-                avro_files[o['stream']].append(flattened_record)
+                # avro_files[o['stream']].append(flattened_record)
+                # buffering record to avro_records collection
+                avro_records[o['stream']].append(flattened_record)
 
                 state = None
             elif t == 'STATE':
@@ -237,7 +242,7 @@ def persist_lines(config, lines):
                 if 'key_properties' not in o:
                     raise Exception("key_properties field is required")
                 key_properties[stream] = o['key_properties']
-                avro_files[stream] = open(os.path.join(temp_dir, "{0}{1}.json".format(stream, now)), 'a')
+                # avro_files[stream] = open(os.path.join(temp_dir, "{0}{1}.json".format(stream, now)), 'a')
 
                 # read in the catalog and add selected fields to the avro schema
                 schema_date_fields[stream] = []
@@ -258,20 +263,28 @@ def persist_lines(config, lines):
                 avsc_files[stream].close()
 
                 # open the avro data file
-                avro_schema = avro.schema.Parse(dumps(avsc_dict))
-                avro_files[stream] = DataFileWriter(open("{0}.avro".format(avsc_basename[stream]), "wb"),
-                                                    DatumWriter(),
-                                                    avro_schema)
+#                avro_schema = avro.schema.Parse(dumps(avsc_dict))
+                avro_schemas[stream] = parse_schema(avsc_dict)
+
+                # avro_files[stream] = DataFileWriter(open("{0}.avro".format(avsc_basename[stream]), "wb"),
+                #                                     DatumWriter(),
+                #                                     avro_schema)
+
+                # create new records list for the stream
+                avro_records[stream] = []
+
             elif t == 'ACTIVATE_VERSION':
                 logger.debug('Completed sync of {0} version {1}.'.format(o['stream'], o['version']))
             else:
                 raise Exception("Unknown message type {} in message {}"
                                 .format(o['type'], o))
         # Close all stream files and move to s3 target location
-        for file_iter in avro_files.keys():
-            avro_files[file_iter].close()
+        for stream_iter in avro_schemas.keys():
+            with open("{0}.avro".format(avsc_basename[stream_iter]), "wb") as avro_out:
+                writer(avro_out, avro_schemas[stream_iter], avro_records[stream_iter])
+                avro_out.close()
             try:
-                file_name = "{0}.avro".format(avsc_basename[file_iter])
+                file_name = "{0}.avro".format(avsc_basename[stream_iter])
                 logger.info('Moving file ({0}) to s3 location: {1}/{2} ...'.format(file_name,
                                                                                    target_bucket,
                                                                                    target_key))
@@ -279,7 +292,7 @@ def persist_lines(config, lines):
                                       target_bucket,
                                       target_key + "/" + os.path.basename(file_name))
 
-                file_name = "{0}.avsc".format(avsc_basename[file_iter])
+                file_name = "{0}.avsc".format(avsc_basename[stream_iter])
                 logger.info('Moving file ({0}) to s3 location: {1}/{2} ...'.format(file_name,
                                                                                    target_schema_bucket,
                                                                                    target_schema_key))
