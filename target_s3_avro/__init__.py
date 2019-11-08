@@ -190,7 +190,7 @@ def persist_lines(config, lines):
             if error_code == '404':
                 raise Exception("Bucket {0} does not exist!".format(target_schema_bucket))
 
-    logger.info('Processing input ...')
+    logger.info('{0} - Processing input ...'.format(now.strftime("%H:%M:%S")))
     # create temp directory for processing
     with tempfile.TemporaryDirectory(dir=tdir) as temp_dir:
         # Loop over lines from stdin
@@ -214,7 +214,7 @@ def persist_lines(config, lines):
                                     " was encountered before a corresponding schema")
 
                 # Validate record
-                validators[o['stream']].validate(o['record'])
+                # validators[o['stream']].validate(o['record'])
 
                 # Convert date fields in the record
                 for df_iter in schema_date_fields[o['stream']]:
@@ -278,6 +278,7 @@ def persist_lines(config, lines):
             else:
                 raise Exception("Unknown message type {} in message {}"
                                 .format(o['type'], o))
+
         # Close all stream files and move to s3 target location
         for stream_iter in avro_schemas.keys():
             with open("{0}.avro".format(avsc_basename[stream_iter]), "wb") as avro_out:
@@ -285,17 +286,19 @@ def persist_lines(config, lines):
                 avro_out.close()
             try:
                 file_name = "{0}.avro".format(avsc_basename[stream_iter])
-                logger.info('Moving file ({0}) to s3 location: {1}/{2} ...'.format(file_name,
-                                                                                   target_bucket,
-                                                                                   target_key))
+                logger.info('{0} - Moving file ({1}) to s3 location: {2}/{3} ...'.format(now.strftime("%H:%M:%S"),
+                                                                                         file_name,
+                                                                                         target_bucket,
+                                                                                         target_key))
                 s3_client.upload_file(file_name,
                                       target_bucket,
                                       target_key + "/" + os.path.basename(file_name))
 
                 file_name = "{0}.avsc".format(avsc_basename[stream_iter])
-                logger.info('Moving file ({0}) to s3 location: {1}/{2} ...'.format(file_name,
-                                                                                   target_schema_bucket,
-                                                                                   target_schema_key))
+                logger.info('{0} - Moving file ({1}) to s3 location: {2}/{3} ...'.format(now.strftime("%H:%M:%S"),
+                                                                                         file_name,
+                                                                                         target_schema_bucket,
+                                                                                         target_schema_key))
                 s3_client.upload_file(file_name,
                                       target_schema_bucket,
                                       target_schema_key + "/" + os.path.basename(file_name))
