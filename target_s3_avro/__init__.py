@@ -190,7 +190,7 @@ def persist_lines(config, lines):
             if error_code == '404':
                 raise Exception("Bucket {0} does not exist!".format(target_schema_bucket))
 
-    logger.info('{0} - Processing input ...'.format(now.strftime("%H:%M:%S")))
+    logger.info('{0} - Processing input ...'.format(datetime.now().strftime("%H:%M:%S")))
     # create temp directory for processing
     with tempfile.TemporaryDirectory(dir=tdir) as temp_dir:
         # Loop over lines from stdin
@@ -286,7 +286,7 @@ def persist_lines(config, lines):
                 avro_out.close()
             try:
                 file_name = "{0}.avro".format(avsc_basename[stream_iter])
-                logger.info('{0} - Moving file ({1}) to s3 location: {2}/{3} ...'.format(now.strftime("%H:%M:%S"),
+                logger.info('{0} - Moving file ({1}) to s3 location: {2}/{3} ...'.format(datetime.now().strftime("%H:%M:%S"),
                                                                                          file_name,
                                                                                          target_bucket,
                                                                                          target_key))
@@ -295,7 +295,7 @@ def persist_lines(config, lines):
                                       target_key + "/" + os.path.basename(file_name))
 
                 file_name = "{0}.avsc".format(avsc_basename[stream_iter])
-                logger.info('{0} - Moving file ({1}) to s3 location: {2}/{3} ...'.format(now.strftime("%H:%M:%S"),
+                logger.info('{0} - Moving file ({1}) to s3 location: {2}/{3} ...'.format(datetime.now().strftime("%H:%M:%S"),
                                                                                          file_name,
                                                                                          target_schema_bucket,
                                                                                          target_schema_key))
@@ -356,7 +356,7 @@ def main():
     state = persist_lines(config, std_input)
 
     emit_state(state)
-    logger.debug("Exiting normally")
+    logger.debug("{0} - Exiting normally".format(datetime.now().strftime("%H:%M:%S")))
 
 
 if __name__ == '__main__':
